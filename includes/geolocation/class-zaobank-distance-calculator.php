@@ -114,13 +114,17 @@ class ZAOBank_Distance_Calculator {
 		));
 
 		if (empty($location_rows)) {
-			return array();
+			return self::empty_result();
 		}
 
 		// Calculate precise distances and filter
 		$jobs_with_distance = array();
 
 		foreach ($location_rows as $row) {
+			if (class_exists('ZAOBank_Security') && !ZAOBank_Security::is_content_visible('job', (int) $row->object_id)) {
+				continue;
+			}
+
 			$distance = self::calculate_distance(
 				$lat, $lng,
 				(float) $row->latitude, (float) $row->longitude,
@@ -139,7 +143,7 @@ class ZAOBank_Distance_Calculator {
 		}
 
 		if (empty($jobs_with_distance)) {
-			return array();
+			return self::empty_result();
 		}
 
 		// Sort by distance
@@ -183,6 +187,19 @@ class ZAOBank_Distance_Calculator {
 			'jobs' => $jobs,
 			'total' => $query->found_posts,
 			'pages' => $query->max_num_pages,
+		);
+	}
+
+	/**
+	 * Standard empty results payload for distance endpoints.
+	 *
+	 * @return array Empty response shape.
+	 */
+	private static function empty_result() {
+		return array(
+			'jobs' => array(),
+			'total' => 0,
+			'pages' => 0,
 		);
 	}
 

@@ -270,11 +270,11 @@ Mobile apps should use the `/config` endpoint for navigation URLs and feature fl
 
 ## Important Gotchas
 
-### 1. Security Bypass Without zaobank-core
+### 1. zaobank-core Required for Jobs Endpoints
 
-If zaobank-core is disabled, security checks in the REST API are bypassed. The plugin checks for `ZAOBank_Security` class existence but defaults to allowing access if missing.
+Jobs endpoints depend on `ZAOBank_Security`. If zaobank-core is disabled or unavailable, jobs API calls now fail closed with a `503 core_dependency_missing` error.
 
-**Mitigation:** Never run zaobank-mobile without zaobank-core active.
+**Mitigation:** Keep zaobank-core active anywhere the mobile API is enabled.
 
 ### 2. Geocoding on Every Job Save
 

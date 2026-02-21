@@ -71,6 +71,11 @@ class ZAOBank_Mobile_REST_Jobs {
 	 * @return WP_REST_Response Response.
 	 */
 	public function get_jobs($request) {
+		$security_check = $this->ensure_security_available();
+		if (is_wp_error($security_check)) {
+			return $security_check;
+		}
+
 		$lat = $request->get_param('lat');
 		$lng = $request->get_param('lng');
 		$radius = $request->get_param('radius');
@@ -173,13 +178,23 @@ class ZAOBank_Mobile_REST_Jobs {
 			);
 		}
 
+		$hidden_job_ids = $this->get_hidden_job_ids();
+		if (!empty($hidden_job_ids)) {
+			$args['post__not_in'] = $hidden_job_ids;
+		}
+
 		$query = new WP_Query($args);
 		$jobs = array();
 
 		if ($query->have_posts()) {
 			while ($query->have_posts()) {
 				$query->the_post();
-				$jobs[] = $this->format_job(get_the_ID());
+				$job_id = get_the_ID();
+				if (!$this->is_job_visible($job_id)) {
+					continue;
+				}
+
+				$jobs[] = $this->format_job($job_id);
 			}
 			wp_reset_postdata();
 		}
@@ -217,8 +232,13 @@ class ZAOBank_Mobile_REST_Jobs {
 			);
 		}
 
+		$security_check = $this->ensure_security_available();
+		if (is_wp_error($security_check)) {
+			return $security_check;
+		}
+
 		// Check visibility
-		if (class_exists('ZAOBank_Security') && !ZAOBank_Security::is_content_visible('job', $job_id)) {
+		if (!$this->is_job_visible($job_id)) {
 			return new WP_Error(
 				'job_not_available',
 				__('This job is not available.', 'zaobank-mobile'),
@@ -402,6 +422,66 @@ class ZAOBank_Mobile_REST_Jobs {
 			default:
 				return array();
 		}
+	}
+
+	/**
+	 * Ensure required core security functionality is available.
+	 *
+	 * @return true|WP_Error True when available.
+	 */
+	private function ensure_security_available() {
+		if (class_exists('ZAOBank_Security') && method_exists('ZAOBank_Security', 'is_content_visible')) {
+			return true;
+		}
+
+		return new WP_Error(
+			'core_dependency_missing',
+			__('ZAO Bank Core security module is required for jobs endpoints.', 'zaobank-mobile'),
+			array('status' => 503)
+		);
+	}
+
+	/**
+	 * Check whether a job should be visible in API responses.
+	 *
+	 * @param int $job_id Job post ID.
+	 * @return bool True when visible.
+	 */
+	private function is_job_visible($job_id) {
+		return ZAOBank_Security::is_content_visible('job', (int) $job_id);
+	}
+
+	/**
+	 * Get IDs of jobs currently hidden by moderation flags.
+	 *
+	 * @return int[] Job IDs to exclude.
+	 */
+	private function get_hidden_job_ids() {
+		global $wpdb;
+
+		if (!get_option('zaobank_auto_hide_flagged', true)) {
+			return array();
+		}
+
+		if (!class_exists('ZAOBank_Database') || !method_exists('ZAOBank_Database', 'get_flags_table')) {
+			return array();
+		}
+
+		$flags_table = ZAOBank_Database::get_flags_table();
+		$hidden_ids = $wpdb->get_col($wpdb->prepare(
+			"SELECT DISTINCT flagged_item_id
+			FROM $flags_table
+			WHERE flagged_item_type = %s
+			AND status = %s",
+			'job',
+			'open'
+		));
+
+		if (empty($hidden_ids)) {
+			return array();
+		}
+
+		return array_map('intval', $hidden_ids);
 	}
 
 	/**

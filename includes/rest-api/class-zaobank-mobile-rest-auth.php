@@ -241,15 +241,31 @@ class ZAOBank_Mobile_REST_Auth {
 			);
 		}
 
-		// Generate new JWT token (keep existing refresh token valid)
+		// Generate new JWT token
 		$jwt = ZAOBank_JWT_Tokens::generate_token($user->ID);
 
 		if (is_wp_error($jwt)) {
 			return $jwt;
 		}
 
+		// Rotate refresh token for better security.
+		$new_refresh = ZAOBank_JWT_Tokens::generate_refresh_token($user->ID);
+
+		if (is_wp_error($new_refresh)) {
+			return $new_refresh;
+		}
+
+		ZAOBank_JWT_Tokens::revoke_refresh_token($refresh_token);
+
+		$expiration = $this->get_token_expiration_data($jwt);
+
 		return new WP_REST_Response(array(
+			'access_token' => $jwt,
 			'token' => $jwt,
+			'expires_in' => $expiration['expires_in'],
+			'expires_at' => $expiration['expires_at'],
+			'refresh_token' => $new_refresh['token'],
+			'refresh_expires_at' => $new_refresh['expires_at'],
 			'user' => $this->format_user($user),
 		), 200);
 	}
@@ -332,12 +348,43 @@ class ZAOBank_Mobile_REST_Auth {
 
 		$refresh = ZAOBank_JWT_Tokens::generate_refresh_token($user->ID, $device_info);
 
+		if (is_wp_error($refresh)) {
+			return $refresh;
+		}
+
+		$expiration = $this->get_token_expiration_data($jwt);
+
 		return new WP_REST_Response(array(
+			'access_token' => $jwt,
 			'token' => $jwt,
+			'expires_in' => $expiration['expires_in'],
+			'expires_at' => $expiration['expires_at'],
 			'refresh_token' => $refresh['token'],
 			'refresh_expires_at' => $refresh['expires_at'],
 			'user' => $this->format_user($user),
 		), $status_code);
+	}
+
+	/**
+	 * Extract token expiration metadata for client-side refresh planning.
+	 *
+	 * @param string $jwt JWT token.
+	 * @return array Expiration details.
+	 */
+	private function get_token_expiration_data($jwt) {
+		$payload = ZAOBank_JWT_Tokens::validate_token($jwt);
+
+		if (is_wp_error($payload) || empty($payload['exp'])) {
+			return array(
+				'expires_in' => 0,
+				'expires_at' => null,
+			);
+		}
+
+		return array(
+			'expires_in' => max(0, (int) $payload['exp'] - time()),
+			'expires_at' => gmdate('c', (int) $payload['exp']),
+		);
 	}
 
 	/**

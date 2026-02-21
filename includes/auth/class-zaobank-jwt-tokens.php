@@ -22,7 +22,10 @@ class ZAOBank_JWT_Tokens {
 		$secret = get_option('zaobank_mobile_jwt_secret');
 		$expiration_days = (int) get_option('zaobank_mobile_jwt_expiration', 30);
 		$issued_at = time();
-		$expiration = $issued_at + ($expiration_days * DAY_IN_SECONDS);
+		$expiration_seconds = $expiration_days * DAY_IN_SECONDS;
+		$expiration_seconds = (int) apply_filters('zaobank_mobile_jwt_expiration', $expiration_seconds, $user_id, $extra_claims);
+		$expiration_seconds = max(60, $expiration_seconds);
+		$expiration = $issued_at + $expiration_seconds;
 
 		$user = get_user_by('ID', $user_id);
 		if (!$user) {
@@ -78,7 +81,7 @@ class ZAOBank_JWT_Tokens {
 	 *
 	 * @param int    $user_id User ID.
 	 * @param string $device_info Optional device information.
-	 * @return array Token and expiration data.
+	 * @return array|WP_Error Token and expiration data.
 	 */
 	public static function generate_refresh_token($user_id, $device_info = '') {
 		global $wpdb;
@@ -86,11 +89,14 @@ class ZAOBank_JWT_Tokens {
 		$token = wp_generate_password(64, false);
 		$token_hash = wp_hash_password($token);
 		$expiration_days = (int) get_option('zaobank_mobile_refresh_expiration', 90);
-		$expires_at = gmdate('Y-m-d H:i:s', time() + ($expiration_days * DAY_IN_SECONDS));
+		$expiration_seconds = $expiration_days * DAY_IN_SECONDS;
+		$expiration_seconds = (int) apply_filters('zaobank_mobile_refresh_expiration', $expiration_seconds, $user_id, $device_info);
+		$expiration_seconds = max(DAY_IN_SECONDS, $expiration_seconds);
+		$expires_at = gmdate('Y-m-d H:i:s', time() + $expiration_seconds);
 
 		$table = $wpdb->prefix . 'zaobank_mobile_refresh_tokens';
 
-		$wpdb->insert(
+		$inserted = $wpdb->insert(
 			$table,
 			array(
 				'user_id' => $user_id,
@@ -101,6 +107,14 @@ class ZAOBank_JWT_Tokens {
 			),
 			array('%d', '%s', '%s', '%s', '%s')
 		);
+
+		if ($inserted === false) {
+			return new WP_Error(
+				'refresh_token_insert_failed',
+				__('Unable to create refresh token.', 'zaobank-mobile'),
+				array('status' => 500)
+			);
+		}
 
 		return array(
 			'token' => $token,
@@ -159,11 +173,7 @@ class ZAOBank_JWT_Tokens {
 
 		$table = $wpdb->prefix . 'zaobank_mobile_refresh_tokens';
 
-		$rows = $wpdb->get_results(
-			$wpdb->prepare(
-				"SELECT id, token_hash FROM $table WHERE revoked_at IS NULL"
-			)
-		);
+		$rows = $wpdb->get_results("SELECT id, token_hash FROM $table WHERE revoked_at IS NULL");
 
 		foreach ($rows as $row) {
 			if (wp_check_password($token, $row->token_hash)) {

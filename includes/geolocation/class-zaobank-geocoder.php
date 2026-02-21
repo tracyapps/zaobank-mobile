@@ -53,7 +53,7 @@ class ZAOBank_Geocoder {
 
 		$url = add_query_arg(
 			array(
-				'address' => urlencode($address),
+				'address' => $address,
 				'key' => $api_key,
 			),
 			self::API_URL
@@ -238,10 +238,6 @@ class ZAOBank_Geocoder {
 	 * @return array Results with success/error counts.
 	 */
 	public function batch_geocode_jobs($limit = 50) {
-		global $wpdb;
-
-		$locations_table = $wpdb->prefix . 'zaobank_locations';
-
 		// Get jobs with location field but no geocoded data
 		$jobs = get_posts(array(
 			'post_type' => 'timebank_job',
