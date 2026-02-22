@@ -35,6 +35,8 @@ $options = array(
 	'zaobank_mobile_distance_unit',
 	'zaobank_mobile_google_api_key',
 	'zaobank_mobile_min_app_version',
+	'zaobank_mobile_latest_ios_version',
+	'zaobank_mobile_latest_android_version',
 	'zaobank_mobile_testflight_url',
 	'zaobank_mobile_appstore_url',
 	'zaobank_mobile_playstore_url',

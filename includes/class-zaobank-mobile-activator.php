@@ -94,6 +94,8 @@ class ZAOBank_Mobile_Activator {
 			'zaobank_mobile_max_radius' => 100,
 			'zaobank_mobile_distance_unit' => 'miles',
 			'zaobank_mobile_min_app_version' => '1.0.0',
+			'zaobank_mobile_latest_ios_version' => '1.0.0',
+			'zaobank_mobile_latest_android_version' => '1.0.0',
 			'zaobank_mobile_testflight_url' => '',
 			'zaobank_mobile_appstore_url' => '',
 			'zaobank_mobile_playstore_url' => '',

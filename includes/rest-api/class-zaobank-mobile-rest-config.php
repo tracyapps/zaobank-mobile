@@ -50,6 +50,13 @@ class ZAOBank_Mobile_REST_Config {
 	 * @return WP_REST_Response Response.
 	 */
 	public function get_config($request) {
+		$min_version = get_option('zaobank_mobile_min_app_version', '1.0.0');
+		$latest_ios_version = get_option('zaobank_mobile_latest_ios_version', $min_version);
+		$latest_android_version = get_option('zaobank_mobile_latest_android_version', $min_version);
+		$testflight_url = get_option('zaobank_mobile_testflight_url', '');
+		$appstore_url = get_option('zaobank_mobile_appstore_url', '');
+		$playstore_url = get_option('zaobank_mobile_playstore_url', '');
+
 		$config = array(
 			// API info
 			'api' => array(
@@ -59,13 +66,19 @@ class ZAOBank_Mobile_REST_Config {
 
 			// App version requirements
 			'app' => array(
-				'min_version' => get_option('zaobank_mobile_min_app_version', '1.0.0'),
+				'min_version' => $min_version,
 				'current_version' => ZAOBANK_MOBILE_VERSION,
-				'update_url' => array(
-					'ios' => get_option('zaobank_mobile_appstore_url', ''),
-					'android' => get_option('zaobank_mobile_playstore_url', ''),
+				'latest_version' => array(
+					'ios' => $latest_ios_version,
+					'android' => $latest_android_version,
 				),
-				'testflight_url' => get_option('zaobank_mobile_testflight_url', ''),
+				'update_url' => array(
+					'ios' => $testflight_url ?: $appstore_url,
+					'android' => $playstore_url,
+				),
+				'testflight_url' => $testflight_url,
+				'appstore_url' => $appstore_url,
+				'playstore_url' => $playstore_url,
 			),
 
 			// Location settings
@@ -117,30 +130,31 @@ class ZAOBank_Mobile_REST_Config {
 		$platform = $request->get_param('platform');
 
 		$min_version = get_option('zaobank_mobile_min_app_version', '1.0.0');
+		$latest_version = $this->get_latest_version($platform, $min_version);
 
-		$is_compatible = version_compare($app_version, $min_version, '>=');
-		$is_current = version_compare($app_version, ZAOBANK_MOBILE_VERSION, '>=');
+		$normalized_app_version = $this->normalize_version($app_version);
+		$normalized_min_version = $this->normalize_version($min_version);
+		$normalized_latest_version = $this->normalize_version($latest_version);
+
+		$is_compatible = version_compare($normalized_app_version, $normalized_min_version, '>=');
+		$is_current = version_compare($normalized_app_version, $normalized_latest_version, '>=');
 
 		$response = array(
 			'compatible' => $is_compatible,
 			'current' => $is_current,
 			'app_version' => $app_version,
 			'min_version' => $min_version,
-			'latest_version' => ZAOBANK_MOBILE_VERSION,
+			'latest_version' => $latest_version,
 		);
 
 		if (!$is_compatible) {
 			$response['message'] = __('Please update the app to continue.', 'zaobank-mobile');
 			$response['update_required'] = true;
-
-			if ($platform === 'ios') {
-				$response['update_url'] = get_option('zaobank_mobile_appstore_url') ?: get_option('zaobank_mobile_testflight_url');
-			} else {
-				$response['update_url'] = get_option('zaobank_mobile_playstore_url');
-			}
+			$response['update_url'] = $this->get_update_url($platform);
 		} elseif (!$is_current) {
 			$response['message'] = __('A new version is available.', 'zaobank-mobile');
 			$response['update_available'] = true;
+			$response['update_url'] = $this->get_update_url($platform);
 		} else {
 			$response['message'] = __('App is up to date.', 'zaobank-mobile');
 		}
@@ -172,5 +186,64 @@ class ZAOBank_Mobile_REST_Config {
 				'count' => $term->count,
 			);
 		}, $terms);
+	}
+
+	/**
+	 * Resolve latest app version by platform.
+	 *
+	 * @param string $platform Platform key.
+	 * @param string $fallback_version Fallback version if platform-specific option is empty.
+	 * @return string
+	 */
+	private function get_latest_version($platform, $fallback_version) {
+		if ($platform === 'android') {
+			return get_option('zaobank_mobile_latest_android_version', $fallback_version);
+		}
+
+		return get_option('zaobank_mobile_latest_ios_version', $fallback_version);
+	}
+
+	/**
+	 * Resolve update URL by platform.
+	 *
+	 * @param string $platform Platform key.
+	 * @return string
+	 */
+	private function get_update_url($platform) {
+		if ($platform === 'android') {
+			return get_option('zaobank_mobile_playstore_url', '');
+		}
+
+		$testflight_url = get_option('zaobank_mobile_testflight_url', '');
+		$appstore_url = get_option('zaobank_mobile_appstore_url', '');
+
+		return $testflight_url ?: $appstore_url;
+	}
+
+	/**
+	 * Normalize numeric versions so values like "1.0" and "1.0.0" compare as equal.
+	 *
+	 * @param string $version Raw version string.
+	 * @return string
+	 */
+	private function normalize_version($version) {
+		$version = trim((string) $version);
+
+		if ($version === '') {
+			return '0.0.0';
+		}
+
+		// Keep semantic/pre-release versions untouched.
+		if (!preg_match('/^[0-9]+(?:\.[0-9]+)*$/', $version)) {
+			return $version;
+		}
+
+		$parts = explode('.', $version);
+
+		while (count($parts) < 3) {
+			$parts[] = '0';
+		}
+
+		return implode('.', $parts);
 	}
 }

@@ -3,7 +3,7 @@
  * Plugin Name: ZAO Bank Mobile
  * Plugin URI: https://zaobank.org
  * Description: Mobile app backend infrastructure for ZAO Bank - provides JWT authentication, geolocation services, and mobile-optimized REST API endpoints.
- * Version: 1.0.0
+ * Version: 1.0.1
  * Author: ZAO Bank
  * Author URI: https://zaobank.org
  * License: GPL v2 or later
@@ -20,7 +20,7 @@ if (!defined('WPINC')) {
 }
 
 // Define plugin constants
-define('ZAOBANK_MOBILE_VERSION', '1.0.0');
+define('ZAOBANK_MOBILE_VERSION', '1.0.1');
 define('ZAOBANK_MOBILE_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('ZAOBANK_MOBILE_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('ZAOBANK_MOBILE_PLUGIN_BASENAME', plugin_basename(__FILE__));

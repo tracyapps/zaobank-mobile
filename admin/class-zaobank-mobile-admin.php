@@ -84,7 +84,19 @@ class ZAOBank_Mobile_Admin {
 		register_setting('zaobank_mobile_settings', 'zaobank_mobile_min_app_version', array(
 			'type' => 'string',
 			'default' => '1.0.0',
-			'sanitize_callback' => 'sanitize_text_field',
+			'sanitize_callback' => array($this, 'sanitize_version_field'),
+		));
+
+		register_setting('zaobank_mobile_settings', 'zaobank_mobile_latest_ios_version', array(
+			'type' => 'string',
+			'default' => '1.0.0',
+			'sanitize_callback' => array($this, 'sanitize_version_field'),
+		));
+
+		register_setting('zaobank_mobile_settings', 'zaobank_mobile_latest_android_version', array(
+			'type' => 'string',
+			'default' => '1.0.0',
+			'sanitize_callback' => array($this, 'sanitize_version_field'),
 		));
 
 		register_setting('zaobank_mobile_settings', 'zaobank_mobile_testflight_url', array(
@@ -203,6 +215,30 @@ class ZAOBank_Mobile_Admin {
 		);
 
 		add_settings_field(
+			'zaobank_mobile_latest_ios_version',
+			__('Latest iOS App Version', 'zaobank-mobile'),
+			array($this, 'text_field_callback'),
+			'zaobank-mobile',
+			'zaobank_mobile_distribution_section',
+			array(
+				'name' => 'zaobank_mobile_latest_ios_version',
+				'placeholder' => '1.0.0',
+			)
+		);
+
+		add_settings_field(
+			'zaobank_mobile_latest_android_version',
+			__('Latest Android App Version', 'zaobank-mobile'),
+			array($this, 'text_field_callback'),
+			'zaobank-mobile',
+			'zaobank_mobile_distribution_section',
+			array(
+				'name' => 'zaobank_mobile_latest_android_version',
+				'placeholder' => '1.0.0',
+			)
+		);
+
+		add_settings_field(
 			'zaobank_mobile_testflight_url',
 			__('TestFlight URL', 'zaobank-mobile'),
 			array($this, 'url_field_callback'),
@@ -284,7 +320,32 @@ class ZAOBank_Mobile_Admin {
 	 * Distribution section callback.
 	 */
 	public function distribution_section_callback() {
-		echo '<p>' . esc_html__('Configure app store URLs and version requirements.', 'zaobank-mobile') . '</p>';
+		echo '<p>' . esc_html__('Configure app store URLs plus minimum/latest app versions.', 'zaobank-mobile') . '</p>';
+	}
+
+	/**
+	 * Sanitize app version settings.
+	 *
+	 * @param string $value Version value.
+	 * @return string
+	 */
+	public function sanitize_version_field($value) {
+		$value = sanitize_text_field($value);
+
+		if ($value === '') {
+			return '';
+		}
+
+		// Normalize numeric versions to a 3-part format (e.g. 1.0 -> 1.0.0).
+		if (preg_match('/^[0-9]+(?:\.[0-9]+)*$/', $value)) {
+			$parts = explode('.', $value);
+			while (count($parts) < 3) {
+				$parts[] = '0';
+			}
+			return implode('.', $parts);
+		}
+
+		return $value;
 	}
 
 	/**
