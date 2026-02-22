@@ -408,7 +408,7 @@ if (empty($key)) {
 
 ### Jobs Endpoints
 
-#### GET /jobs
+#### GET /jobs (JWT Required)
 
 Query parameters:
 - `page` (int) - Page number

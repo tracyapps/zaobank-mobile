@@ -37,25 +37,25 @@ class ZAOBank_JWT_Auth {
 		$payload = ZAOBank_JWT_Tokens::validate_token($token);
 
 		if (is_wp_error($payload)) {
-			$this->auth_error = $payload;
+			$this->auth_error = $this->normalize_auth_error($payload);
 			return $user_id;
 		}
 
 		if (!isset($payload['sub'])) {
-			$this->auth_error = new WP_Error(
+			$this->auth_error = $this->normalize_auth_error(new WP_Error(
 				'missing_user_id',
 				__('Token does not contain user ID.', 'zaobank-mobile')
-			);
+			));
 			return $user_id;
 		}
 
 		$user = get_user_by('ID', $payload['sub']);
 
 		if (!$user) {
-			$this->auth_error = new WP_Error(
+			$this->auth_error = $this->normalize_auth_error(new WP_Error(
 				'user_not_found',
 				__('User not found.', 'zaobank-mobile')
-			);
+			));
 			return $user_id;
 		}
 
@@ -74,7 +74,36 @@ class ZAOBank_JWT_Auth {
 			return $error;
 		}
 
+		if (is_wp_error($this->auth_error)) {
+			return $this->normalize_auth_error($this->auth_error);
+		}
+
 		return $this->auth_error;
+	}
+
+	/**
+	 * Ensure authentication errors return an HTTP 401 status.
+	 *
+	 * @param WP_Error $error Error object.
+	 * @return WP_Error Normalized error with status code.
+	 */
+	private function normalize_auth_error($error) {
+		if (!is_wp_error($error)) {
+			return new WP_Error(
+				'auth_failed',
+				__('Authentication failed.', 'zaobank-mobile'),
+				array('status' => 401)
+			);
+		}
+
+		$code = $error->get_error_code();
+		$data = $error->get_error_data($code);
+
+		if (!is_array($data) || !isset($data['status'])) {
+			$error->add_data(array('status' => 401), $code);
+		}
+
+		return $error;
 	}
 
 	/**

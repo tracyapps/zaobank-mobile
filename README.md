@@ -99,8 +99,8 @@ Base URL: `/wp-json/zaobank-mobile/v1/`
 
 | Endpoint | Method | Auth | Description |
 |----------|--------|------|-------------|
-| `/jobs` | GET | No | List jobs (supports lat/lng for distance) |
-| `/jobs/{id}` | GET | No | Get single job |
+| `/jobs` | GET | JWT | List jobs (supports lat/lng for distance) |
+| `/jobs/{id}` | GET | JWT | Get single job |
 | `/jobs/nearby` | GET | JWT | Jobs near user's saved location |
 
 ### Location

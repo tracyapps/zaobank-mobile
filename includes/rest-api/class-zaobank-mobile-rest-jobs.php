@@ -19,7 +19,7 @@ class ZAOBank_Mobile_REST_Jobs {
 		register_rest_route($this->namespace, '/jobs', array(
 			'methods' => WP_REST_Server::READABLE,
 			'callback' => array($this, 'get_jobs'),
-			'permission_callback' => '__return_true',
+			'permission_callback' => array($this, 'check_authentication'),
 			'args' => $this->get_collection_params(),
 		));
 
@@ -27,7 +27,7 @@ class ZAOBank_Mobile_REST_Jobs {
 		register_rest_route($this->namespace, '/jobs/(?P<id>[\d]+)', array(
 			'methods' => WP_REST_Server::READABLE,
 			'callback' => array($this, 'get_job'),
-			'permission_callback' => '__return_true',
+			'permission_callback' => array($this, 'check_authentication'),
 			'args' => array(
 				'id' => array(
 					'validate_callback' => function($param) {
@@ -310,8 +310,8 @@ class ZAOBank_Mobile_REST_Jobs {
 	public function check_authentication($request) {
 		if (!is_user_logged_in()) {
 			return new WP_Error(
-				'rest_forbidden',
-				__('You must be logged in to perform this action.', 'zaobank-mobile'),
+				'mobile_auth_required',
+				__('Authentication required. Please log in to view jobs.', 'zaobank-mobile'),
 				array('status' => 401)
 			);
 		}
